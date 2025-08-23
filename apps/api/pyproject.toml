@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hobby-showcase-api"
+version = "0.1.0"
+description = "FastAPI backend for Hobby Showcase"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy>=2.0.23",
+    "alembic>=1.12.1",
+    "pydantic>=2.5.0",
+    "python-multipart>=0.0.6",
+    "passlib[bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.3.0",
+    "typer>=0.9.0",
+    "orjson>=3.9.10",
+    "jsonschema>=4.20.0",
+    "python-magic>=0.4.27",
+    "pillow>=10.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "httpx>=0.25.2",
+    "pytest-asyncio>=0.21.1",
+    "ruff>=0.1.6",
+    "black>=23.11.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "S", "B", "A", "C4", "DTZ", "T20", "Q"]
+ignore = ["ANN101", "ANN102", "ANN401", "S101", "S104"]
+
+[tool.ruff.per-file-ignores]
+"alembic/**/*.py" = ["ANN", "N999"]
+"tests/**/*.py" = ["ANN", "S"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"

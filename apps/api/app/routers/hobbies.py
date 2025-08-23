@@ -1,0 +1,103 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from ..auth import get_current_user
+from ..db import get_session
+from ..models import User, Hobby as HobbyModel
+from ..schemas import Hobby, HobbyCreate, HobbyUpdate
+
+router = APIRouter(prefix="/hobbies", tags=["hobbies"])
+
+
+@router.get("/", response_model=List[Hobby])
+def get_hobbies(
+    parent_id: Optional[int] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get hobbies, optionally filtered by parent_id"""
+    query = session.query(HobbyModel)
+    if parent_id is not None:
+        query = query.filter(HobbyModel.parent_id == parent_id)
+    else:
+        query = query.filter(HobbyModel.parent_id.is_(None))
+    
+    return query.all()
+
+
+@router.post("/", response_model=Hobby)
+def create_hobby(
+    hobby_data: HobbyCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new hobby"""
+    # Check if name already exists
+    existing = session.query(HobbyModel).filter(HobbyModel.name == hobby_data.name).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Hobby with this name already exists"
+        )
+    
+    hobby = HobbyModel(**hobby_data.model_dump())
+    session.add(hobby)
+    session.commit()
+    session.refresh(hobby)
+    return hobby
+
+
+@router.patch("/{hobby_id}", response_model=Hobby)
+def update_hobby(
+    hobby_id: int,
+    hobby_update: HobbyUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a hobby"""
+    hobby = session.query(HobbyModel).filter(HobbyModel.id == hobby_id).first()
+    if not hobby:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hobby not found"
+        )
+    
+    update_data = hobby_update.model_dump(exclude_unset=True)
+    
+    # Check name uniqueness if updating name
+    if "name" in update_data:
+        existing = session.query(HobbyModel).filter(
+            HobbyModel.name == update_data["name"],
+            HobbyModel.id != hobby_id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Hobby with this name already exists"
+            )
+    
+    for field, value in update_data.items():
+        setattr(hobby, field, value)
+    
+    session.commit()
+    session.refresh(hobby)
+    return hobby
+
+
+@router.delete("/{hobby_id}")
+def delete_hobby(
+    hobby_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a hobby"""
+    hobby = session.query(HobbyModel).filter(HobbyModel.id == hobby_id).first()
+    if not hobby:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hobby not found"
+        )
+    
+    session.delete(hobby)
+    session.commit()
+    return {"message": "Hobby deleted successfully"}
