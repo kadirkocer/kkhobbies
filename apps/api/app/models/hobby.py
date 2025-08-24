@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 from typing import TYPE_CHECKING
@@ -17,8 +17,11 @@ class Hobby(Base):
     parent_id: Mapped[int | None] = mapped_column(
         ForeignKey("hobby.id"), nullable=True
     )
+    slug: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships
-    parent: Mapped["Hobby | None"] = relationship("Hobby", remote_side=[id])
+    parent: Mapped["Hobby | None"] = relationship("Hobby", remote_side=[id], back_populates="children")
     children: Mapped[list["Hobby"]] = relationship("Hobby", back_populates="parent")
     entries: Mapped[list["Entry"]] = relationship("Entry", back_populates="hobby")

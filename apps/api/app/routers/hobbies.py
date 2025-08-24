@@ -5,6 +5,7 @@ from ..auth import get_current_user
 from ..db import get_session
 from ..models import User, Hobby as HobbyModel
 from ..schemas import Hobby, HobbyCreate, HobbyUpdate
+from ..services.hobby_tree import get_hobby_tree, slugify, ensure_unique_slug
 
 router = APIRouter(prefix="/hobbies", tags=["hobbies"])
 
@@ -25,6 +26,24 @@ def get_hobbies(
     return query.all()
 
 
+@router.get("/tree", response_model=List[Hobby])
+def get_hobbies_tree(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Return hierarchical hobby tree sorted by sort_order."""
+    return get_hobby_tree(session)
+
+
+@router.get("/{hobby_id}/children", response_model=List[Hobby])
+def get_children(
+    hobby_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    return session.query(HobbyModel).filter(HobbyModel.parent_id == hobby_id).order_by(HobbyModel.sort_order, HobbyModel.id).all()
+
+
 @router.post("/", response_model=Hobby)
 def create_hobby(
     hobby_data: HobbyCreate,
@@ -40,7 +59,12 @@ def create_hobby(
             detail="Hobby with this name already exists"
         )
     
-    hobby = HobbyModel(**hobby_data.model_dump())
+    data = hobby_data.model_dump()
+    # Slug auto-generate
+    if not data.get("slug"):
+        base = slugify(data["name"])
+        data["slug"] = ensure_unique_slug(session, base)
+    hobby = HobbyModel(**data)
     session.add(hobby)
     session.commit()
     session.refresh(hobby)
@@ -63,6 +87,9 @@ def update_hobby(
         )
     
     update_data = hobby_update.model_dump(exclude_unset=True)
+    if "slug" in update_data and (not update_data["slug"]):
+        base = slugify(update_data.get("name") or hobby.name)
+        update_data["slug"] = ensure_unique_slug(session, base, exclude_id=hobby.id)
     
     # Check name uniqueness if updating name
     if "name" in update_data:

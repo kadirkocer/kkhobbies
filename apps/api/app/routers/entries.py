@@ -4,14 +4,22 @@ from sqlalchemy import text, func
 from typing import List, Optional, Literal
 from ..auth import get_current_user
 from ..db import get_session
-from ..models import User, Entry as EntryModel, EntryProp as EntryPropModel, EntryMedia as EntryMediaModel
+from ..models import (
+    User,
+    Entry as EntryModel,
+    EntryProp as EntryPropModel,
+    EntryMedia as EntryMediaModel,
+    EntryTag as EntryTagModel,
+    Hobby as HobbyModel,
+)
 from ..schemas import (
     Entry, EntryCreate, EntryUpdate, EntryListItem,
     EntryProp, EntryPropBatch, EntryMedia, EntryMediaCreate,
     PaginatedResponse
 )
-from ..services import validate_entry_props
-from ..utils import save_upload_file, delete_file
+from ..services.entry_validation import validate_entry_props
+from ..services.uploads import store_upload, delete_upload, public_url
+from ..services.tags import normalize_tags, join_tags
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
@@ -22,6 +30,7 @@ def get_entries(
     hobby_id: Optional[int] = Query(None),
     type_key: Optional[str] = Query(None),
     tag: Optional[str] = Query(None),
+    include_descendants: bool = Query(False),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
@@ -54,11 +63,23 @@ def get_entries(
         query = session.query(EntryModel)
         
         if hobby_id:
-            query = query.filter(EntryModel.hobby_id == hobby_id)
+            if include_descendants:
+                ids = [hobby_id]
+                queue = [hobby_id]
+                while queue:
+                    hid = queue.pop(0)
+                    for (cid,) in session.query(HobbyModel.id).filter(HobbyModel.parent_id == hid).all():
+                        ids.append(cid)
+                        queue.append(cid)
+                query = query.filter(EntryModel.hobby_id.in_(ids))
+            else:
+                query = query.filter(EntryModel.hobby_id == hobby_id)
         if type_key:
             query = query.filter(EntryModel.type_key == type_key)
         if tag:
-            query = query.filter(EntryModel.tags.contains(tag))
+            query = query.join(EntryTagModel, EntryTagModel.entry_id == EntryModel.id).filter(
+                EntryTagModel.tag == tag.lower()
+            )
         
         total = query.count()
         entries = query.order_by(EntryModel.created_at.desc()).offset(offset).limit(limit).all()
@@ -99,7 +120,7 @@ def get_entries(
             created_at=entry_obj.created_at,
             updated_at=entry_obj.updated_at,
             media_count=media_count,
-            thumbnail_url=thumbnail.file_path if thumbnail else None,
+            thumbnail_url=public_url(thumbnail.file_path) if thumbnail else None,
             props=props
         )
         items.append(item)
@@ -120,10 +141,17 @@ def create_entry(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new entry"""
-    entry = EntryModel(**entry_data.model_dump())
+    data = entry_data.model_dump()
+    tag_list = normalize_tags(data.get("tags"))
+    data["tags"] = join_tags(tag_list) if tag_list else None
+    entry = EntryModel(**data)
     session.add(entry)
     session.commit()
     session.refresh(entry)
+    if tag_list:
+        for t in tag_list:
+            session.add(EntryTagModel(entry_id=entry.id, tag=t))
+        session.commit()
     return entry
 
 
@@ -159,6 +187,14 @@ def update_entry(
         )
     
     update_data = entry_update.model_dump(exclude_unset=True)
+    # Handle tags
+    if "tags" in update_data:
+        tag_list = normalize_tags(update_data.get("tags"))
+        entry.tags = join_tags(tag_list) if tag_list else None
+        session.query(EntryTagModel).filter(EntryTagModel.entry_id == entry.id).delete()
+        for t in tag_list:
+            session.add(EntryTagModel(entry_id=entry.id, tag=t))
+        update_data.pop("tags", None)
     for field, value in update_data.items():
         setattr(entry, field, value)
     
@@ -288,13 +324,7 @@ async def upload_media(
             detail="Entry not found"
         )
     
-    try:
-        file_info = await save_upload_file(file, kind)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    file_info = await store_upload(file, kind)
     
     media = EntryMediaModel(
         entry_id=entry_id,
@@ -308,7 +338,17 @@ async def upload_media(
     session.add(media)
     session.commit()
     session.refresh(media)
-    return media
+    # Return with public URL for client
+    return EntryMedia(
+        id=media.id,
+        entry_id=media.entry_id,
+        kind=media.kind,
+        file_path=public_url(media.file_path),
+        width=media.width,
+        height=media.height,
+        duration=media.duration,
+        meta_json=media.meta_json,
+    )
 
 
 @router.get("/{entry_id}/media", response_model=List[EntryMedia])
@@ -325,7 +365,21 @@ def get_entry_media(
             detail="Entry not found"
         )
     
-    return session.query(EntryMediaModel).filter(EntryMediaModel.entry_id == entry_id).all()
+    items = session.query(EntryMediaModel).filter(EntryMediaModel.entry_id == entry_id).all()
+    # Map file_path to public URL for client
+    return [
+        EntryMedia(
+            id=m.id,
+            entry_id=m.entry_id,
+            kind=m.kind,
+            file_path=public_url(m.file_path),
+            width=m.width,
+            height=m.height,
+            duration=m.duration,
+            meta_json=m.meta_json,
+        )
+        for m in items
+    ]
 
 
 @router.delete("/{entry_id}/media/{media_id}")
@@ -348,7 +402,7 @@ def delete_media(
         )
     
     # Delete physical file
-    delete_file(media.file_path)
+    delete_upload(media.file_path)
     
     # Delete database record
     session.delete(media)

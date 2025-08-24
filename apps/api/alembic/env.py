@@ -25,8 +25,17 @@ target_metadata = Base.metadata
 
 
 def get_database_url():
-    """Get database URL from environment variables"""
-    db_path = os.getenv("DB_PATH", "./data/app.db")
+    """Build a robust SQLite URL from DB_PATH.
+
+    If `DB_PATH` is relative, resolve it relative to the project root
+    (two levels up from this file's directory), so it works regardless
+    of the current working directory.
+    """
+    # Default to repo-local data path when DB_PATH not provided
+    db_path = os.getenv("DB_PATH", "data/app.db")
+    if not os.path.isabs(db_path):
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        db_path = os.path.abspath(os.path.join(base, db_path))
     return f"sqlite:///{db_path}"
 
 

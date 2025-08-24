@@ -1,8 +1,15 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from .services.uploads import _resolve_upload_dir
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
-from .db import init_db
+from pydantic import ValidationError
+from .db.session import SessionLocal
+from .db.fts import ensure_fts
 from .routers import (
     auth_router,
     users_router,
@@ -17,8 +24,12 @@ from .routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan events for FastAPI application"""
-    # Startup
-    init_db()
+    # Startup - initialize FTS5 tables and triggers
+    session = SessionLocal()
+    try:
+        ensure_fts(session)
+    finally:
+        session.close()
     yield
     # Shutdown
     pass
@@ -40,6 +51,63 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Exception handlers for standardized error envelope
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTPException with standardized error envelope"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": exc.status_code,
+            "code": f"HTTP_{exc.status_code}",
+            "message": exc.detail,
+            "details": None
+        }
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors with standardized error envelope"""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": 422,
+            "code": "VALIDATION_ERROR",
+            "message": "Request validation failed",
+            "details": exc.errors()
+        }
+    )
+
+
+@app.exception_handler(ValidationError)
+async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
+    """Handle Pydantic validation errors with standardized error envelope"""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": 422,
+            "code": "VALIDATION_ERROR",
+            "message": "Data validation failed",
+            "details": exc.errors()
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected errors with standardized error envelope"""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": 500,
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected error occurred",
+            "details": None
+        }
+    )
+
+
 # Include routers
 app.include_router(auth_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
@@ -48,6 +116,10 @@ app.include_router(hobby_types_router, prefix="/api")
 app.include_router(entries_router, prefix="/api")
 app.include_router(search_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
+
+"""Serve uploaded files under /api/uploads"""
+uploads_dir: Path = _resolve_upload_dir()
+app.mount("/api/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/")

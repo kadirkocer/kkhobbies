@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
 from typing import TYPE_CHECKING
@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 class Entry(Base, TimestampMixin):
     __tablename__ = "entry"
+    __table_args__ = (
+        Index("idx_entry_hobby", "hobby_id"),
+        Index("idx_entry_type", "type_key"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     hobby_id: Mapped[int] = mapped_column(
@@ -32,4 +36,7 @@ class Entry(Base, TimestampMixin):
     )
     props: Mapped[list["EntryProp"]] = relationship(
         "EntryProp", back_populates="entry", cascade="all, delete-orphan"
+    )
+    tags_rel: Mapped[list["EntryTag"]] = relationship(
+        "EntryTag", back_populates="entry", cascade="all, delete-orphan"
     )

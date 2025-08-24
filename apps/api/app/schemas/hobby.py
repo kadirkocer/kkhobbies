@@ -7,6 +7,9 @@ class HobbyBase(BaseModel):
     color: str | None = None
     icon: str | None = None
     parent_id: int | None = None
+    slug: str | None = None
+    description: str | None = None
+    sort_order: int | None = 0
 
 
 class HobbyCreate(HobbyBase):
@@ -18,6 +21,9 @@ class HobbyUpdate(BaseModel):
     color: str | None = None
     icon: str | None = None
     parent_id: int | None = None
+    slug: str | None = None
+    description: str | None = None
+    sort_order: int | None = None
 
 
 class Hobby(HobbyBase):

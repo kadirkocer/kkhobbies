@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import I18nProvider from './providers/I18nProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Hobby Showcase',
-  description: 'A portable, single-user hobby journal',
+  title: 'Hobi Defteri',
+  description: 'Yerel, tek kullanıcı hobi günlüğü',
 }
 
 export default function RootLayout({
@@ -16,9 +17,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <body className={inter.className}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <I18nProvider>{children}</I18nProvider>
+        </Providers>
       </body>
     </html>
   )

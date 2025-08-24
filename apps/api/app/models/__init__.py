@@ -4,5 +4,14 @@ from .hobby_type import HobbyType
 from .entry import Entry
 from .entry_media import EntryMedia
 from .entry_prop import EntryProp
+from .entry_tag import EntryTag
 
-__all__ = ["User", "Hobby", "HobbyType", "Entry", "EntryMedia", "EntryProp"]
+__all__ = [
+    "User",
+    "Hobby",
+    "HobbyType",
+    "Entry",
+    "EntryMedia",
+    "EntryProp",
+    "EntryTag",
+]

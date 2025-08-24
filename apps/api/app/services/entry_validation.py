@@ -1,9 +1,9 @@
 import json
 from typing import Dict, Any, List
-import jsonschema
 from sqlalchemy.orm import Session
 from ..models import HobbyType
 from ..schemas import EntryPropBase
+from .schema_validation import validate_props
 
 
 def validate_entry_props(
@@ -42,17 +42,12 @@ def validate_entry_props(
                 # If not JSON, treat as string
                 props_dict[prop.key] = prop.value_text
     
-    # Validate against schema
+    # Validate against schema using Draft 2020-12
     try:
-        jsonschema.validate(props_dict, schema)
+        validate_props(hobby_type.schema_json, props_dict)
         return {"valid": True, "errors": []}
-    except jsonschema.ValidationError as e:
+    except Exception as e:
         return {
             "valid": False,
             "errors": [str(e)]
-        }
-    except jsonschema.SchemaError as e:
-        return {
-            "valid": False,
-            "errors": [f"Invalid schema: {str(e)}"]
         }

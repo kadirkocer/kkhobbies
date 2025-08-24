@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 
 class UserBase(BaseModel):
+    username: str
     name: str | None = None
     bio: str | None = None
     avatar_path: str | None = None
@@ -25,4 +26,5 @@ class User(UserBase):
 
 
 class LoginRequest(BaseModel):
+    username: str | None = None  # Optional for single-user setup
     password: str

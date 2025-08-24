@@ -1,25 +1,15 @@
-import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-import jsonschema
 from ..auth import get_current_user
 from ..db import get_session
 from ..models import User, HobbyType as HobbyTypeModel
 from ..schemas import HobbyType, HobbyTypeCreate, HobbyTypeUpdate
+from ..services.schema_validation import is_valid_json_schema
 
 router = APIRouter(prefix="/hobby-types", tags=["hobby-types"])
 
 
-def validate_json_schema(schema_json: str) -> bool:
-    """Validate that the provided string is a valid JSON Schema"""
-    try:
-        schema = json.loads(schema_json)
-        # Basic validation - check if it's a valid JSON Schema
-        jsonschema.Draft7Validator.check_schema(schema)
-        return True
-    except (json.JSONDecodeError, jsonschema.exceptions.SchemaError):
-        return False
 
 
 @router.get("/", response_model=List[HobbyType])
@@ -39,7 +29,7 @@ def create_hobby_type(
 ):
     """Create a new hobby type"""
     # Validate JSON Schema
-    if not validate_json_schema(hobby_type_data.schema_json):
+    if not is_valid_json_schema(hobby_type_data.schema_json):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid JSON Schema"
@@ -79,7 +69,7 @@ def update_hobby_type(
     
     # Validate JSON Schema if provided
     if "schema_json" in update_data:
-        if not validate_json_schema(update_data["schema_json"]):
+        if not is_valid_json_schema(update_data["schema_json"]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid JSON Schema"

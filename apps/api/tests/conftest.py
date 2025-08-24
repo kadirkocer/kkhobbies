@@ -6,7 +6,8 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.db import get_session
+from app.db.session import get_session
+from app.db.fts import ensure_fts
 from app.models.base import Base
 from app.models import User, Hobby, HobbyType
 from app.auth import hash_password
@@ -22,6 +23,13 @@ def test_db():
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     Base.metadata.create_all(bind=engine)
+    
+    # Setup FTS5 for testing
+    session = TestingSessionLocal()
+    try:
+        ensure_fts(session)
+    finally:
+        session.close()
     
     yield TestingSessionLocal, engine
     
@@ -62,6 +70,7 @@ def client(test_db):
 def test_user(db_session):
     """Create a test user"""
     user = User(
+        username="testuser",
         name="Test User",
         password_hash=hash_password("testpass123")
     )

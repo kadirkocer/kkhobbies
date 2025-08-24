@@ -1,4 +1,8 @@
-.PHONY: init install-api install-web run dev lint test clean help
+.PHONY: init install-api install-web run dev lint test clean help ai-starter
+
+# Ensure bash is used for commands that rely on 'source'
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c
 
 # Environment setup
 ENV_FILE := .env
@@ -24,7 +28,8 @@ help:
 	@echo "Docker commands:"
 	@echo "  docker-up     - Start with Docker Compose"
 	@echo "  docker-down   - Stop Docker Compose"
-	@echo "  docker-build  - Build Docker images"
+		@echo "  docker-build  - Build Docker images"
+		@echo "  ai-starter    - Generate demo entries (starter seed)"
 
 # Environment setup
 $(ENV_FILE):
@@ -37,7 +42,9 @@ $(ENV_FILE):
 # Installation targets
 install-api:
 	@echo "Installing Python API dependencies..."
-	cd apps/api && pip install -r requirements.txt
+	python3 -m venv .venv
+	. .venv/bin/activate; python -m pip install --upgrade pip setuptools wheel
+	. .venv/bin/activate; pip install --prefer-binary --no-cache-dir -r apps/api/requirements.txt
 
 install-web:
 	@echo "Installing Node.js web dependencies..."
@@ -46,11 +53,11 @@ install-web:
 # Database targets
 db-init: $(ENV_FILE)
 	@echo "Initializing database..."
-	cd apps/api && python3 -m app.cli init
+	source .venv/bin/activate && cd apps/api && alembic upgrade head && python3 -m app.cli init
 
 db-seed: $(ENV_FILE)
 	@echo "Seeding database..."
-	cd apps/api && python3 -m app.cli init
+	source .venv/bin/activate && cd apps/api && python3 -m app.cli init
 
 db-reset: $(ENV_FILE)
 	@echo "WARNING: This will delete all data!"
@@ -71,41 +78,41 @@ init: $(ENV_FILE) install-api install-web db-init
 run: $(ENV_FILE)
 	@echo "Starting production servers..."
 	@trap 'kill 0' INT; \
-	(cd apps/api && uvicorn app.main:app --host 0.0.0.0 --port 8000) & \
-	(cd apps/web && npm run build && npm start) & \
+	(source .venv/bin/activate && cd apps/api && uvicorn app.main:app --host 0.0.0.0 --port 8000) & \
+	(cd apps/web && npm run build && PORT=3000 npm start) & \
 	wait
 
 dev: $(ENV_FILE)
 	@echo "Starting development servers..."
 	@trap 'kill 0' INT; \
-	(cd apps/api && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload) & \
-	(cd apps/web && npm run dev) & \
+	(source .venv/bin/activate && cd apps/api && python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload) & \
+	(cd apps/web && PORT=3000 npm run dev) & \
 	wait
 
 # Linting
 lint:
 	@echo "Running linters..."
-	cd apps/api && ruff check . && black --check .
+	source .venv/bin/activate && cd apps/api && ruff check . && black --check .
 	cd apps/web && npm run lint
 
 lint-fix:
 	@echo "Fixing linting issues..."
-	cd apps/api && ruff check --fix . && black .
+	source .venv/bin/activate && cd apps/api && ruff check --fix . && black .
 	cd apps/web && npm run lint --fix
 
 # Testing
 test:
 	@echo "Running tests..."
-	cd apps/api && python -m pytest
-	cd apps/web && npm run test
+	source .venv/bin/activate && cd apps/api && python -m pytest
+	cd apps/web && npx playwright test
 
 test-api:
 	@echo "Running API tests..."
-	cd apps/api && python -m pytest
+	source .venv/bin/activate && cd apps/api && python -m pytest
 
 test-web:
 	@echo "Running web tests..."
-	cd apps/web && npm run test
+	cd apps/web && npx playwright test
 
 # Docker
 docker-build:
@@ -118,7 +125,12 @@ docker-down:
 	docker compose down
 
 docker-logs:
-	docker compose logs -f
+		docker compose logs -f
+
+# AI-like starter seed
+ai-starter: $(ENV_FILE)
+		@echo "Generating demo entries..."
+		source .venv/bin/activate && cd apps/api && python3 -m app.cli starter --count 10
 
 # Export/Import
 export-data:

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Search, Plus, Filter } from 'lucide-react'
 
 interface TopBarProps {
@@ -30,10 +31,13 @@ export function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
             <span>Filter</span>
           </button>
           
-          <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+          <Link
+            href="/entries/new"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
             <Plus className="w-4 h-4" />
             <span>New Entry</span>
-          </button>
+          </Link>
         </div>
       </div>
     </header>

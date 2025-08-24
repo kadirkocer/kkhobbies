@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, Float, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, Float, String, Text, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 from typing import TYPE_CHECKING
@@ -9,6 +9,9 @@ if TYPE_CHECKING:
 
 class EntryMedia(Base):
     __tablename__ = "entrymedia"
+    __table_args__ = (
+        Index("idx_media_entry", "entry_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     entry_id: Mapped[int] = mapped_column(
