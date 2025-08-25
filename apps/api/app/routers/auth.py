@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
-from ..auth import hash_password, verify_password, create_access_token, get_current_user
+
+from ..auth import create_access_token, get_current_user, verify_password
 from ..db import get_session
 from ..models import User
-from ..schemas import LoginRequest, User as UserSchema
+from ..schemas import LoginRequest
+from ..schemas import User as UserSchema
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -20,21 +24,21 @@ def login(
         user = session.query(User).filter(User.username == credentials.username).first()
     else:
         user = session.query(User).first()  # Single user fallback
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
+
     if not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
+
     access_token = create_access_token(data={"sub": str(user.id)})
-    
+
     # Set httpOnly cookie
     response.set_cookie(
         key="access_token",
@@ -58,7 +62,7 @@ def login(
         )
     except Exception:
         pass
-    
+
     return {"user": UserSchema.from_orm(user)}
 
 

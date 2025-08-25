@@ -1,7 +1,9 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, Index
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base
 from typing import TYPE_CHECKING
+
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base
 
 if TYPE_CHECKING:
     from .entry import Entry

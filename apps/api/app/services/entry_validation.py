@@ -1,6 +1,8 @@
 import json
-from typing import Dict, Any, List
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from ..models import HobbyType
 from ..schemas import EntryPropBase
 from .schema_validation import validate_props
@@ -9,8 +11,8 @@ from .schema_validation import validate_props
 def validate_entry_props(
     session: Session,
     type_key: str,
-    props: List[EntryPropBase]
-) -> Dict[str, Any]:
+    props: list[EntryPropBase]
+) -> dict[str, Any]:
     """
     Validate entry properties against the hobby type's JSON schema.
     Returns validation result with errors if any.
@@ -22,7 +24,7 @@ def validate_entry_props(
             "valid": False,
             "errors": [f"Hobby type '{type_key}' not found"]
         }
-    
+
     try:
         schema = json.loads(hobby_type.schema_json)
     except json.JSONDecodeError:
@@ -30,7 +32,7 @@ def validate_entry_props(
             "valid": False,
             "errors": ["Invalid JSON schema for hobby type"]
         }
-    
+
     # Convert props to a dictionary for validation
     props_dict = {}
     for prop in props:
@@ -41,7 +43,7 @@ def validate_entry_props(
             except json.JSONDecodeError:
                 # If not JSON, treat as string
                 props_dict[prop.key] = prop.value_text
-    
+
     # Validate against schema using Draft 2020-12
     try:
         validate_props(hobby_type.schema_json, props_dict)

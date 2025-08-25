@@ -1,14 +1,15 @@
-import os
 import json
+import os
 import random
+
 import typer
-from datetime import datetime
 from sqlalchemy.orm import Session
+
 from .auth import hash_password
-from .db.session import SessionLocal
 from .db.fts import ensure_fts
-from .models import User, Hobby, HobbyType, Entry, EntryProp
-from .services.hobby_tree import slugify, ensure_unique_slug
+from .db.session import SessionLocal
+from .models import Entry, EntryProp, Hobby, HobbyType, User
+from .services.hobby_tree import ensure_unique_slug, slugify
 
 app = typer.Typer(name="hobby-showcase")
 
@@ -47,6 +48,56 @@ SEED_HOBBY_TYPES = [
         "key": "brand_link",
         "title": "Brand Link",
         "schema_json": '{"type":"object","properties":{"brand":{"type":"string"},"url":{"type":"string","format":"uri"},"category":{"type":"string"},"notes":{"type":"string"}},"required":["brand","url"]}'
+    },
+    {
+        "key": "note",
+        "title": "Note",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"content":{"type":"string"},"summary":{"type":"string"},"source":{"type":"string","format":"uri"}},"required":["content"]}'
+    },
+    {
+        "key": "pdf_doc",
+        "title": "PDF Document",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"title":{"type":"string"},"pages":{"type":"integer"},"source":{"type":"string","enum":["local","url"]},"url":{"type":"string","format":"uri"},"notes":{"type":"string"}},"required":["title"]}'
+    },
+    {
+        "key": "youtube_video",
+        "title": "YouTube Video",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"url":{"type":"string","format":"uri"},"video_id":{"type":"string"},"channel":{"type":"string"},"title":{"type":"string"},"duration_sec":{"type":"integer"},"thumbnail_url":{"type":"string","format":"uri"},"published_at":{"type":"string","format":"date-time"}},"required":["url"]}'
+    },
+    {
+        "key": "social_post",
+        "title": "Social Post",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"platform":{"type":"string","enum":["twitter","instagram","tiktok","threads"]},"url":{"type":"string","format":"uri"},"post_id":{"type":"string"},"author":{"type":"string"},"text":{"type":"string"},"media_url":{"type":"string","format":"uri"},"published_at":{"type":"string","format":"date-time"}},"required":["platform","url"]}'
+    },
+    {
+        "key": "code_snippet",
+        "title": "Code Snippet",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"language":{"type":"string"},"filename":{"type":"string"},"gist_id":{"type":"string"},"summary":{"type":"string"},"link":{"type":"string","format":"uri"}},"required":["language"]}'
+    },
+    {
+        "key": "github_repo",
+        "title": "GitHub Repository",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"url":{"type":"string","format":"uri"},"owner":{"type":"string"},"repo":{"type":"string"},"description":{"type":"string"},"primary_language":{"type":"string"},"stars":{"type":"integer"},"license":{"type":"string"}},"required":["url","owner","repo"]}'
+    },
+    {
+        "key": "project_link",
+        "title": "Project Link",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"url":{"type":"string","format":"uri"},"title":{"type":"string"},"description":{"type":"string"},"tech_stack":{"type":"string"}},"required":["url","title"]}'
+    },
+    {
+        "key": "audio_track",
+        "title": "Audio Track",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"title":{"type":"string"},"artist":{"type":"string"},"album":{"type":"string"},"bpm":{"type":"integer"},"key":{"type":"string"},"duration_sec":{"type":"integer"},"link":{"type":"string","format":"uri"}},"required":["title"]}'
+    },
+    {
+        "key": "spotify_playlist",
+        "title": "Spotify Playlist",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"url":{"type":"string","format":"uri"},"playlist_id":{"type":"string"},"title":{"type":"string"},"owner":{"type":"string"},"track_count":{"type":"integer"},"cover_url":{"type":"string","format":"uri"}},"required":["url"]}'
+    },
+    {
+        "key": "spotify_track",
+        "title": "Spotify Track",
+        "schema_json": '{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"url":{"type":"string","format":"uri"},"track_id":{"type":"string"},"title":{"type":"string"},"artist":{"type":"string"},"album":{"type":"string"},"duration_sec":{"type":"integer"},"cover_url":{"type":"string","format":"uri"}},"required":["url"]}'
     }
 ]
 
@@ -68,19 +119,19 @@ def get_db_session() -> Session:
 def init():
     """Initialize the database and seed with default data"""
     typer.echo("Initializing database...")
-    
+
     session = get_db_session()
-    
+
     try:
         # Ensure FTS5 setup
         ensure_fts(session)
-        
+
         # Create default user if none exists
         existing_user = session.query(User).first()
         if not existing_user:
             username = os.getenv("ADMIN_INITIAL_USERNAME", "admin")
             password = os.getenv("ADMIN_INITIAL_PASSWORD", "change_me")
-            
+
             user = User(
                 username=username,
                 name=username,
@@ -88,7 +139,7 @@ def init():
             )
             session.add(user)
             typer.echo(f"Created admin user: {username}")
-        
+
         # Seed hobby types
         for type_data in SEED_HOBBY_TYPES:
             existing = session.query(HobbyType).filter(HobbyType.key == type_data["key"]).first()
@@ -127,7 +178,7 @@ def init():
 
         session.commit()
         typer.echo("Database initialization completed!")
-        
+
     except Exception as e:
         session.rollback()
         typer.echo(f"Error during initialization: {e}")
@@ -143,11 +194,11 @@ def create_user(
 ):
     """Create a new user (for single-user app, this replaces existing user)"""
     session = get_db_session()
-    
+
     try:
         # Delete existing user (single-user app)
         session.query(User).delete()
-        
+
         # Create new user
         user = User(
             username=name,
@@ -156,9 +207,9 @@ def create_user(
         )
         session.add(user)
         session.commit()
-        
+
         typer.echo(f"Created user: {name}")
-        
+
     except Exception as e:
         session.rollback()
         typer.echo(f"Error creating user: {e}")

@@ -1,6 +1,8 @@
-import pytest
 import io
-from app.models import Entry, EntryProp
+
+import pytest
+
+from app.models import Entry
 
 
 @pytest.fixture
@@ -73,7 +75,7 @@ def test_delete_entry(auth_client, test_entry):
     """Test deleting an entry"""
     response = auth_client.delete(f"/api/entries/{test_entry.id}")
     assert response.status_code == 200
-    
+
     # Verify it's deleted
     get_response = auth_client.get(f"/api/entries/{test_entry.id}")
     assert get_response.status_code == 404
@@ -91,13 +93,13 @@ def test_entry_props_crud(auth_client, test_entry, test_hobby_type):
     data = response.json()
     assert len(data) == 1
     assert data[0]["key"] == "test_prop"
-    
+
     # Get properties
     response = auth_client.get(f"/api/entries/{test_entry.id}/props")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    
+
     # Delete property
     response = auth_client.delete(f"/api/entries/{test_entry.id}/props/test_prop")
     assert response.status_code == 200
@@ -121,7 +123,7 @@ def test_upload_media(auth_client, test_entry):
     # Create a fake image file
     fake_image = io.BytesIO(b"fake image content")
     fake_image.name = "test.jpg"
-    
+
     response = auth_client.post(
         f"/api/entries/{test_entry.id}/media",
         files={"file": ("test.jpg", fake_image, "image/jpeg")},
@@ -143,6 +145,6 @@ def test_entries_require_auth(client, test_entry):
     """Test that entries endpoints require authentication"""
     response = client.get("/api/entries")
     assert response.status_code == 401
-    
+
     response = client.get(f"/api/entries/{test_entry.id}")
     assert response.status_code == 401

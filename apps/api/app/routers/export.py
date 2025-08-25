@@ -1,15 +1,17 @@
 import io
-import zipfile
 import json
 import os
-from datetime import datetime, timezone
+import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
-from fastapi import APIRouter, Depends, Response, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+
 from ..auth import get_current_user
 from ..db import get_session
-from ..models import User, Hobby, HobbyType, Entry, EntryMedia, EntryProp
+from ..models import Entry, EntryMedia, EntryProp, Hobby, HobbyType, User
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -21,7 +23,7 @@ def export_data(
     current_user: User = Depends(get_current_user)
 ):
     """Export all data as ZIP archive or JSON"""
-    
+
     if format == "json":
         return export_json(session)
     elif format == "zip":
@@ -42,11 +44,11 @@ def export_json(session: Session):
     entries = session.query(Entry).all()
     entry_media = session.query(EntryMedia).all()
     entry_props = session.query(EntryProp).all()
-    
+
     # Convert to dictionaries
     data = {
         "version": "1.0",
-        "export_date": datetime.now(timezone.utc).isoformat(),
+        "export_date": datetime.now(UTC).isoformat(),
         "users": [
             {
                 "id": u.id,
@@ -112,9 +114,9 @@ def export_json(session: Session):
             for ep in entry_props
         ]
     }
-    
+
     json_str = json.dumps(data, indent=2)
-    
+
     return Response(
         content=json_str,
         media_type="application/json",
@@ -124,21 +126,21 @@ def export_json(session: Session):
 
 def export_zip(session: Session):
     """Export data as ZIP archive with database export and uploads"""
-    
+
     # Create in-memory ZIP file
     zip_buffer = io.BytesIO()
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         # Add JSON export (reuse serialization logic)
         json_resp = export_json(session)
         zf.writestr("data.json", json_resp.body)
-        
+
         # Add database file if it exists
         db_path_str = os.getenv("DB_PATH", "./data/app.db")
         db_path = Path(db_path_str)
         if db_path.exists():
             zf.write(db_path, "app.db")
-        
+
         # Add upload files
         uploads_path_str = os.getenv("UPLOAD_DIR", "./uploads")
         uploads_path = Path(uploads_path_str)
@@ -147,17 +149,17 @@ def export_zip(session: Session):
                 if file_path.is_file():
                     archive_path = f"uploads/{file_path.relative_to(uploads_path)}"
                     zf.write(file_path, archive_path)
-        
+
         # Add metadata
         metadata = {
-            "export_date": datetime.now(timezone.utc).isoformat(),
+            "export_date": datetime.now(UTC).isoformat(),
             "version": "1.0",
             "format": "hobby-showcase-backup"
         }
         zf.writestr("metadata.json", json.dumps(metadata, indent=2))
-    
+
     zip_buffer.seek(0)
-    
+
     return StreamingResponse(
         io.BytesIO(zip_buffer.read()),
         media_type="application/zip",

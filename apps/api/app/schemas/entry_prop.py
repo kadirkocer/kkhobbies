@@ -1,5 +1,5 @@
+
 from pydantic import BaseModel
-from typing import List, Dict, Any
 
 
 class EntryPropBase(BaseModel):
@@ -20,4 +20,4 @@ class EntryProp(EntryPropBase):
 
 
 class EntryPropBatch(BaseModel):
-    props: List[EntryPropBase]
+    props: list[EntryPropBase]

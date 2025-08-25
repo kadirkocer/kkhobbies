@@ -12,6 +12,9 @@
   "entry.new": "Yeni Kayıt",
   "entry.empty": "Henüz kayıt yok",
   "entry.create_first": "{name} için ilk kaydı oluştur",
+  "entry.create_first_generic": "İlk hobi kaydınızı oluşturarak başlayın",
+  "entry.singular": "kayıt",
+  "entry.plural": "kayıtlar",
   "tabs.entries": "Kayıtlar",
   "tabs.library": "Kitaplık",
   "tabs.links": "Bağlantılar",
@@ -31,5 +34,16 @@
   "button.save": "Kaydet",
   "button.cancel": "İptal",
   "toast.saved": "Kaydedildi",
-  "toast.error": "Bir hata oluştu"
+  "toast.error": "Bir hata oluştu",
+  "entry.thumbnail_alt": "Kayıt küçük resmi",
+  "entry.untitled": "Başlıksız Kayıt",
+  "common.more": "daha fazla",
+  "common.more_properties": "özellik daha",
+  "tabs.notes": "Bilgiler",
+  "tabs.pdfs": "PDF'ler",
+  "tabs.videos": "Videolar",
+  "tabs.social": "Sosyal",
+  "tabs.code": "Kod & Projeler",
+  "tabs.music": "Müzik",
+  "settings.password": "Şifre"
 }

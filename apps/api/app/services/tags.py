@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Iterable, List
+
+from collections.abc import Iterable
 
 
-def normalize_tags(tags: str | Iterable[str] | None) -> List[str]:
+def normalize_tags(tags: str | Iterable[str] | None) -> list[str]:
     """Normalize tags to a lowercase, trimmed unique list.
 
     Accepts CSV string or iterable of strings.
@@ -12,7 +13,7 @@ def normalize_tags(tags: str | Iterable[str] | None) -> List[str]:
     items: Iterable[str]
     if isinstance(tags, str):
         # Split on commas
-        items = [t for t in (s.strip() for s in tags.split(',')) if t]
+        items = [t for t in (s.strip() for s in tags.split(",")) if t]
     else:
         items = (str(t).strip() for t in tags)
     norm = []

@@ -1,16 +1,17 @@
-import pytest
 import os
 import tempfile
+
+import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
 
-from app.main import app
-from app.db.session import get_session
-from app.db.fts import ensure_fts
-from app.models.base import Base
-from app.models import User, Hobby, HobbyType
 from app.auth import hash_password
+from app.db.fts import ensure_fts
+from app.db.session import get_session
+from app.main import app
+from app.models import Hobby, HobbyType, User
+from app.models.base import Base
 
 
 @pytest.fixture(scope="session")
@@ -18,21 +19,21 @@ def test_db():
     """Create a test database"""
     db_fd, db_path = tempfile.mkstemp(suffix=".db")
     database_url = f"sqlite:///{db_path}"
-    
+
     engine = create_engine(database_url, connect_args={"check_same_thread": False})
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+
     Base.metadata.create_all(bind=engine)
-    
+
     # Setup FTS5 for testing
     session = TestingSessionLocal()
     try:
         ensure_fts(session)
     finally:
         session.close()
-    
+
     yield TestingSessionLocal, engine
-    
+
     os.close(db_fd)
     os.unlink(db_path)
 
@@ -50,19 +51,19 @@ def db_session(test_db):
 def client(test_db):
     """Create a test client"""
     TestingSessionLocal, engine = test_db
-    
+
     def override_get_db():
         try:
             db = TestingSessionLocal()
             yield db
         finally:
             db.close()
-    
+
     app.dependency_overrides[get_session] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 

@@ -1,24 +1,26 @@
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-from .services.uploads import _resolve_upload_dir
-from fastapi.exceptions import RequestValidationError
-from contextlib import asynccontextmanager
 from pydantic import ValidationError
-from .db.session import SessionLocal
+
 from .db.fts import ensure_fts
+from .db.session import SessionLocal
 from .routers import (
     auth_router,
-    users_router,
+    entries_router,
+    export_router,
     hobbies_router,
     hobby_types_router,
-    entries_router,
     search_router,
-    export_router
+    users_router,
 )
+from .services.uploads import _resolve_upload_dir
 
 
 @asynccontextmanager
@@ -133,7 +135,6 @@ async def health_check():
     return {"status": "healthy"}
 
 # Lightweight CSRF protection for cookie-auth (bypass in local)
-from fastapi import Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 

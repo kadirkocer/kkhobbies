@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
+
 from ..auth import get_current_user
 from ..db import get_session
 from ..models import User as UserModel
 from ..schemas import User, UserUpdate
-from ..services.uploads import store_avatar, public_url
+from ..services.uploads import public_url, store_avatar
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -25,10 +26,10 @@ def update_current_user(
 ):
     """Update current user profile"""
     update_data = user_update.model_dump(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         setattr(current_user, field, value)
-    
+
     session.commit()
     session.refresh(current_user)
     return current_user

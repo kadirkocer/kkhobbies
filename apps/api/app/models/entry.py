@@ -1,13 +1,15 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, Index
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import Base, TimestampMixin
 from typing import TYPE_CHECKING
 
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from .base import Base, TimestampMixin
+
 if TYPE_CHECKING:
-    from .hobby import Hobby
-    from .hobby_type import HobbyType
     from .entry_media import EntryMedia
     from .entry_prop import EntryProp
+    from .hobby import Hobby
+    from .hobby_type import HobbyType
 
 
 class Entry(Base, TimestampMixin):

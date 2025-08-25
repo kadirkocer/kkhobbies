@@ -1,9 +1,10 @@
 import os
 from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 from app.models.base import Base
-from app.models import User, Hobby, HobbyType, Entry, EntryMedia, EntryProp
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -34,7 +35,9 @@ def get_database_url():
     # Default to repo-local data path when DB_PATH not provided
     db_path = os.getenv("DB_PATH", "data/app.db")
     if not os.path.isabs(db_path):
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+        base = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "..")
+        )
         db_path = os.path.abspath(os.path.join(base, db_path))
     return f"sqlite:///{db_path}"
 
@@ -72,7 +75,7 @@ def run_migrations_online() -> None:
     """
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_database_url()
-    
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

@@ -10,6 +10,7 @@ import { EntryList } from './entries/entry-list'
 export function Dashboard() {
   const [selectedHobbyId, setSelectedHobbyId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   const { data: hobbies = [] } = useQuery({
     queryKey: ['hobbies'],
@@ -31,12 +32,15 @@ export function Dashboard() {
         hobbies={hobbies}
         selectedHobbyId={selectedHobbyId}
         onHobbySelect={setSelectedHobbyId}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         />
         
         <main className="flex-1 overflow-auto p-6">

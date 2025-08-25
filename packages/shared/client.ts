@@ -82,6 +82,17 @@ export const usersAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  async uploadAvatar(file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return request('/users/me/avatar', {
+      method: 'POST',
+      headers: {}, // Let fetch set Content-Type for FormData
+      body: formData,
+    });
+  },
 };
 
 // Hobbies API
@@ -89,6 +100,14 @@ export const hobbiesAPI = {
   async getHobbies(parentId?: number): Promise<Hobby[]> {
     const params = parentId !== undefined ? `?parent_id=${parentId}` : '';
     return request(`/hobbies${params}`);
+  },
+
+  async getHobbiesTree(): Promise<Hobby[]> {
+    return request('/hobbies/tree');
+  },
+
+  async getHobby(id: number): Promise<Hobby> {
+    return request(`/hobbies/${id}`);
   },
 
   async createHobby(data: HobbyCreate): Promise<Hobby> {

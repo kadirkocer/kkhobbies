@@ -24,7 +24,7 @@ export function Sidebar({ onHobbySelect, selectedHobbyId }: SidebarProps) {
 
   const loadHobbies = async () => {
     try {
-      const tree = await hobbiesAPI.getHobbyTree()
+      const tree = await hobbiesAPI.getHobbiesTree()
       const flat: Hobby[] = []
       const walk = (nodes: any[], parentId?: number) => {
         for (const n of nodes) {

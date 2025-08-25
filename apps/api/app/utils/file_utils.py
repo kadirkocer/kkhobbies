@@ -1,10 +1,10 @@
 import os
 import uuid
-import shutil
 from pathlib import Path
-from typing import Optional, Dict, Any
-from PIL import Image
+from typing import Any
+
 from fastapi import UploadFile
+from PIL import Image
 
 try:
     import magic
@@ -36,59 +36,59 @@ def ensure_upload_dir():
     Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 
-def get_file_kind(filename: str, content: bytes) -> Optional[str]:
+def get_file_kind(filename: str, content: bytes) -> str | None:
     """Determine file kind based on extension and MIME type"""
     extension = Path(filename).suffix.lower()
-    
+
     mime_type = None
     if HAS_MAGIC:
         try:
             mime_type = magic.from_buffer(content, mime=True)
         except:
             mime_type = None
-    
+
     for kind, extensions in ALLOWED_EXTENSIONS.items():
         if extension in extensions:
             if mime_type and mime_type in ALLOWED_MIME_TYPES[kind]:
                 return kind
             elif not mime_type:  # Fallback to extension if magic fails
                 return kind
-    
+
     return None
 
 
-async def save_upload_file(file: UploadFile, kind: Optional[str] = None) -> Dict[str, Any]:
+async def save_upload_file(file: UploadFile, kind: str | None = None) -> dict[str, Any]:
     """Save uploaded file and return file info"""
     ensure_upload_dir()
-    
+
     # Read file content
     content = await file.read()
-    
+
     # Check file size
     if len(content) > MAX_FILE_SIZE:
         raise ValueError("File too large")
-    
+
     # Determine file kind if not provided
     if not kind:
         kind = get_file_kind(file.filename or "", content)
         if not kind:
             raise ValueError("Unsupported file type")
-    
+
     # Generate unique filename
     file_id = str(uuid.uuid4())
     extension = Path(file.filename or "").suffix.lower()
     filename = f"{file_id}{extension}"
-    
+
     # Create subdirectory for file kind
     kind_dir = Path(UPLOAD_DIR) / kind
     kind_dir.mkdir(exist_ok=True)
-    
+
     file_path = kind_dir / filename
-    
+
     # Save file
     with open(file_path, "wb") as f:
         f.write(content)
-    
+
     # Get file metadata
     file_info = {
         "file_path": str(file_path.relative_to(Path(UPLOAD_DIR).parent)),
@@ -96,7 +96,7 @@ async def save_upload_file(file: UploadFile, kind: Optional[str] = None) -> Dict
         "filename": file.filename,
         "size": len(content)
     }
-    
+
     # Get additional metadata for images
     if kind == "image":
         try:
@@ -105,22 +105,22 @@ async def save_upload_file(file: UploadFile, kind: Optional[str] = None) -> Dict
                 file_info["height"] = img.height
         except:
             pass
-    
+
     return file_info
 
 
-def get_file_info(file_path: str) -> Dict[str, Any]:
+def get_file_info(file_path: str) -> dict[str, Any]:
     """Get information about an existing file"""
     full_path = Path(file_path)
-    
+
     if not full_path.exists():
         raise FileNotFoundError("File not found")
-    
+
     info = {
         "size": full_path.stat().st_size,
         "extension": full_path.suffix.lower()
     }
-    
+
     # Try to get MIME type
     if HAS_MAGIC:
         try:
@@ -129,7 +129,7 @@ def get_file_info(file_path: str) -> Dict[str, Any]:
                 info["mime_type"] = magic.from_buffer(content, mime=True)
         except:
             pass
-    
+
     return info
 
 

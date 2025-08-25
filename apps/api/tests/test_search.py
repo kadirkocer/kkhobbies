@@ -1,4 +1,5 @@
 import pytest
+
 from app.models import Entry
 
 
@@ -35,14 +36,14 @@ def searchable_entries(db_session, test_hobby, test_hobby_type):
             tags="photography,review"
         )
     ]
-    
+
     for entry in entries:
         db_session.add(entry)
     db_session.commit()
-    
+
     for entry in entries:
         db_session.refresh(entry)
-    
+
     return entries
 
 
@@ -63,7 +64,7 @@ def test_search_with_filters(auth_client, searchable_entries, test_hobby, test_h
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
-    
+
     response = auth_client.get(f"/api/search?q=camera&type_key={test_hobby_type.key}")
     assert response.status_code == 200
     data = response.json()
@@ -101,7 +102,7 @@ def test_search_special_characters(auth_client):
     """Test search with special characters (should be sanitized)"""
     response = auth_client.get("/api/search?q=test;DROP TABLE;")
     assert response.status_code in [200, 400]  # Should be sanitized or rejected
-    
+
 
 def test_search_requires_auth(client):
     """Test that search requires authentication"""

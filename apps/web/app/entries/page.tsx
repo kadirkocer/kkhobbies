@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { Search, Plus, Filter } from 'lucide-react'
 import { t } from '@/lib/i18n'
-import { entriesAPI, hobbyTypesAPI, searchAPI } from '@/lib/shared/client'
+import { entriesAPI, hobbyTypesAPI, searchAPI, usersAPI } from '@/lib/shared/client'
 import { EntryListItem, HobbyType } from '@/lib/shared/types'
 import { Sidebar } from '@/components/Sidebar'
 import Link from 'next/link'
@@ -20,15 +20,35 @@ function EntriesInner() {
   const [selectedTag, setSelectedTag] = useState(params.get('tag') || '')
   const includeDesc = params.get('include_descendants') === 'true'
   const [isLoading, setIsLoading] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
-    loadHobbyTypes()
-  }, [])
+    // Check authentication first
+    const checkAuth = async () => {
+      try {
+        await usersAPI.getCurrentUser()
+        setIsAuthenticated(true)
+      } catch (error) {
+        setIsAuthenticated(false)
+        router.push('/')
+      }
+    }
+
+    checkAuth()
+  }, [router])
 
   useEffect(() => {
-    loadEntries()
+    if (isAuthenticated) {
+      loadHobbyTypes()
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadEntries()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params])
+  }, [params, isAuthenticated])
 
   const loadHobbyTypes = async () => {
     try {
@@ -68,6 +88,18 @@ function EntriesInner() {
     const sp = new URLSearchParams(params.toString())
     if (value && value.length) sp.set(key, value); else sp.delete(key)
     router.push(`/entries?${sp.toString()}`)
+  }
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    )
+  }
+
+  if (isAuthenticated === false) {
+    return null // Will be redirected to home page
   }
 
   return (

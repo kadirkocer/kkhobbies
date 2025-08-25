@@ -1,9 +1,10 @@
 import json
-from jsonschema import validate, ValidationError, Draft202012Validator
-from typing import Dict, Any
+from typing import Any
+
+from jsonschema import Draft202012Validator, validate
 
 
-def validate_props(type_schema_json: str, props: Dict[str, Any]) -> None:
+def validate_props(type_schema_json: str, props: dict[str, Any]) -> None:
     """
     Validate entry props against HobbyType schema_json using JSON Schema Draft 2020-12.
     
@@ -19,13 +20,13 @@ def validate_props(type_schema_json: str, props: Dict[str, Any]) -> None:
         schema = json.loads(type_schema_json)
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON Schema: {e}")
-    
+
     # Use Draft 2020-12 validator
     validator = Draft202012Validator(schema)
-    
+
     # Validate the schema itself first
     Draft202012Validator.check_schema(schema)
-    
+
     # Validate props against schema
     validate(instance=props, schema=schema, cls=Draft202012Validator)
 

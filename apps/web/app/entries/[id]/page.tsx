@@ -98,7 +98,7 @@ export default function EntryDetailPage() {
         value_text: value
       }))
       
-      await entriesAPI.updateEntryProps(entryId, { props: propsToSave })
+      await entriesAPI.setEntryProps(entryId, propsToSave)
       setIsEditingProps(false)
       await loadEntry() // Reload to get updated props
     } catch (error) {

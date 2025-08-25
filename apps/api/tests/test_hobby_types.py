@@ -1,5 +1,6 @@
-import pytest
 import json
+
+import pytest
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def test_create_hobby_type(auth_client):
             "price": {"type": "number"}
         }
     }
-    
+
     response = auth_client.post("/api/hobby-types", json={
         "key": "gear",
         "title": "Gear",
@@ -56,7 +57,7 @@ def test_create_hobby_type_invalid_schema(auth_client):
 def test_create_duplicate_hobby_type(auth_client, test_hobby_type):
     """Test creating hobby type with duplicate key"""
     schema = {"type": "object", "properties": {}}
-    
+
     response = auth_client.post("/api/hobby-types", json={
         "key": test_hobby_type.key,
         "title": "Duplicate",
@@ -91,7 +92,7 @@ def test_delete_hobby_type(auth_client, test_hobby_type):
     """Test deleting a hobby type"""
     response = auth_client.delete(f"/api/hobby-types/{test_hobby_type.key}")
     assert response.status_code == 200
-    
+
     # Verify it's deleted
     get_response = auth_client.get("/api/hobby-types")
     assert get_response.status_code == 200
@@ -104,6 +105,6 @@ def test_hobby_types_require_auth(client, test_hobby_type):
     """Test that hobby types endpoints require authentication"""
     response = client.get("/api/hobby-types")
     assert response.status_code == 401
-    
+
     response = client.post("/api/hobby-types", json={})
     assert response.status_code == 401

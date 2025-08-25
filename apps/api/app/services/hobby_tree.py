@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 import re
-from typing import List, Dict, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from ..models import Hobby
 
 
@@ -25,13 +28,13 @@ def ensure_unique_slug(session: Session, base: str, exclude_id: int | None = Non
         slug = f"{base}-{n}"
 
 
-def get_hobby_tree(session: Session) -> List[Dict[str, Any]]:
+def get_hobby_tree(session: Session) -> list[dict[str, Any]]:
     hobbies = session.query(Hobby).order_by(Hobby.sort_order, Hobby.id).all()
-    by_parent: Dict[int | None, List[Hobby]] = {}
+    by_parent: dict[int | None, list[Hobby]] = {}
     for h in hobbies:
         by_parent.setdefault(h.parent_id, []).append(h)
 
-    def node(h: Hobby) -> Dict[str, Any]:
+    def node(h: Hobby) -> dict[str, Any]:
         return {
             "id": h.id,
             "name": h.name,

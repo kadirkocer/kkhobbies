@@ -4,7 +4,7 @@ import { Hobby } from '@/lib/shared/types'
 import Link from 'next/link'
 import { 
   Music, Camera, Video, Book, Shirt, Cpu, 
-  FolderOpen, Plus, Settings 
+  FolderOpen, Plus, Settings, X
 } from 'lucide-react'
 import { t } from '@/lib/i18n'
 
@@ -12,6 +12,8 @@ interface SidebarProps {
   hobbies: Hobby[]
   selectedHobbyId: number | null
   onHobbySelect: (id: number | null) => void
+  isOpen: boolean
+  setIsOpen: (isOpen: boolean) => void
 }
 
 const iconMap: Record<string, any> = {
@@ -23,16 +25,19 @@ const iconMap: Record<string, any> = {
   cpu: Cpu,
 }
 
-export function Sidebar({ hobbies, selectedHobbyId, onHobbySelect }: SidebarProps) {
+export function Sidebar({ hobbies, selectedHobbyId, onHobbySelect, isOpen, setIsOpen }: SidebarProps) {
   const getIcon = (iconName: string = 'folder') => {
     const IconComponent = iconMap[iconName] || FolderOpen
     return <IconComponent className="w-5 h-5" />
   }
 
   return (
-    <div className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
-      <div className="p-4 border-b border-gray-700">
+    <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-gray-800 border-r border-gray-700 flex flex-col transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}>
+      <div className="flex items-center justify-between p-4 border-b border-gray-700">
         <h1 className="text-xl font-bold text-white">{t('app.title')}</h1>
+        <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white">
+          <X className="w-6 h-6" />
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">

@@ -1,43 +1,69 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
+from typing import Literal
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func
-from typing import List, Optional, Literal
+
 from ..auth import get_current_user
 from ..db import get_session
 from ..models import (
-    User,
     Entry as EntryModel,
-    EntryProp as EntryPropModel,
+)
+from ..models import (
     EntryMedia as EntryMediaModel,
+)
+from ..models import (
+    EntryProp as EntryPropModel,
+)
+from ..models import (
     EntryTag as EntryTagModel,
+)
+from ..models import (
     Hobby as HobbyModel,
 )
+from ..models import (
+    User,
+)
 from ..schemas import (
-    Entry, EntryCreate, EntryUpdate, EntryListItem,
-    EntryProp, EntryPropBatch, EntryMedia, EntryMediaCreate,
-    PaginatedResponse
+    Entry,
+    EntryCreate,
+    EntryListItem,
+    EntryMedia,
+    EntryProp,
+    EntryPropBatch,
+    EntryUpdate,
+    PaginatedResponse,
 )
 from ..services.entry_validation import validate_entry_props
-from ..services.uploads import store_upload, delete_upload, public_url
-from ..services.tags import normalize_tags, join_tags
+from ..services.tags import join_tags, normalize_tags
+from ..services.uploads import delete_upload, public_url, store_upload
 
 router = APIRouter(prefix="/entries", tags=["entries"])
 
 
 @router.get("/", response_model=PaginatedResponse[EntryListItem])
 def get_entries(
-    q: Optional[str] = Query(None, description="Full-text search query"),
-    hobby_id: Optional[int] = Query(None),
-    type_key: Optional[str] = Query(None),
-    tag: Optional[str] = Query(None),
+    q: str | None = Query(None, description="Full-text search query"),
+    hobby_id: int | None = Query(None),
+    type_key: str | None = Query(None),
+    tag: str | None = Query(None),
     include_descendants: bool = Query(False),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> PaginatedResponse[EntryListItem]:
     """Get entries with optional filters and search"""
-    
+
     if q:
         # Full-text search using FTS5, order by BM25 rank (lower is better)
         id_query = text(
@@ -76,14 +102,16 @@ def get_entries(
     else:
         # Regular query with filters
         query = session.query(EntryModel)
-        
+
         if hobby_id:
             if include_descendants:
                 ids = [hobby_id]
                 queue = [hobby_id]
                 while queue:
                     hid = queue.pop(0)
-                    for (cid,) in session.query(HobbyModel.id).filter(HobbyModel.parent_id == hid).all():
+                    for (cid,) in session.query(HobbyModel.id).filter(
+                        HobbyModel.parent_id == hid
+                    ).all():
                         ids.append(cid)
                         queue.append(cid)
                 query = query.filter(EntryModel.hobby_id.in_(ids))
@@ -92,28 +120,33 @@ def get_entries(
         if type_key:
             query = query.filter(EntryModel.type_key == type_key)
         if tag:
-            query = query.join(EntryTagModel, EntryTagModel.entry_id == EntryModel.id).filter(
-                EntryTagModel.tag == tag.lower()
-            )
-        
+            query = query.join(
+                EntryTagModel, EntryTagModel.entry_id == EntryModel.id
+            ).filter(EntryTagModel.tag == tag.lower())
+
         total = query.count()
-        entries = query.order_by(EntryModel.created_at.desc()).offset(offset).limit(limit).all()
-    
+        entries = (
+            query.order_by(EntryModel.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
     # Convert to EntryListItem format
     items = []
     for entry in entries:
         entry_obj = entry
-            
+
         # Get media count and thumbnail
         media_count = session.query(func.count(EntryMediaModel.id)).filter(
             EntryMediaModel.entry_id == entry_obj.id
         ).scalar()
-        
+
         thumbnail = session.query(EntryMediaModel).filter(
             EntryMediaModel.entry_id == entry_obj.id,
-            EntryMediaModel.kind == 'image'
+            EntryMediaModel.kind == "image"
         ).first()
-        
+
         # Get props as dict
         props = {}
         entry_props = session.query(EntryPropModel).filter(
@@ -121,7 +154,7 @@ def get_entries(
         ).all()
         for prop in entry_props:
             props[prop.key] = prop.value_text
-        
+
         item = EntryListItem(
             id=entry_obj.id,
             hobby_id=entry_obj.hobby_id,
@@ -136,7 +169,7 @@ def get_entries(
             props=props
         )
         items.append(item)
-    
+
     return PaginatedResponse(
         items=items,
         total=total,
@@ -151,7 +184,7 @@ def create_entry(
     entry_data: EntryCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> EntryModel:
     """Create a new entry"""
     data = entry_data.model_dump()
     tag_list = normalize_tags(data.get("tags"))
@@ -172,7 +205,7 @@ def get_entry(
     entry_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> EntryModel:
     """Get a specific entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -189,7 +222,7 @@ def update_entry(
     entry_update: EntryUpdate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> EntryModel:
     """Update an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -197,7 +230,7 @@ def update_entry(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
+
     update_data = entry_update.model_dump(exclude_unset=True)
     # Handle tags
     if "tags" in update_data:
@@ -209,7 +242,7 @@ def update_entry(
         update_data.pop("tags", None)
     for field, value in update_data.items():
         setattr(entry, field, value)
-    
+
     session.commit()
     session.refresh(entry)
     return entry
@@ -220,7 +253,7 @@ def delete_entry(
     entry_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> dict:
     """Delete an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -228,19 +261,19 @@ def delete_entry(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
+
     session.delete(entry)
     session.commit()
     return {"message": "Entry deleted successfully"}
 
 
 # Entry Properties endpoints
-@router.get("/{entry_id}/props", response_model=List[EntryProp])
+@router.get("/{entry_id}/props", response_model=list[EntryProp])
 def get_entry_props(
     entry_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> list[EntryProp]:
     """Get properties for an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -248,17 +281,21 @@ def get_entry_props(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
-    return session.query(EntryPropModel).filter(EntryPropModel.entry_id == entry_id).all()
+
+    return (
+        session.query(EntryPropModel)
+        .filter(EntryPropModel.entry_id == entry_id)
+        .all()
+    )
 
 
-@router.post("/{entry_id}/props", response_model=List[EntryProp])
+@router.post("/{entry_id}/props", response_model=list[EntryProp])
 def add_or_replace_entry_props(
     entry_id: int,
     props_data: EntryPropBatch,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> list[EntryProp]:
     """Add or replace properties for an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -266,18 +303,20 @@ def add_or_replace_entry_props(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
+
     # Validate props against schema
     validation_result = validate_entry_props(session, entry.type_key, props_data.props)
     if not validation_result["valid"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Property validation failed: {'; '.join(validation_result['errors'])}"
+            detail=(
+                f"Property validation failed: {'; '.join(validation_result['errors'])}"
+            )
         )
-    
+
     # Remove existing props and add new ones
     session.query(EntryPropModel).filter(EntryPropModel.entry_id == entry_id).delete()
-    
+
     new_props = []
     for prop_data in props_data.props:
         prop = EntryPropModel(
@@ -287,11 +326,11 @@ def add_or_replace_entry_props(
         )
         session.add(prop)
         new_props.append(prop)
-    
+
     session.commit()
     for prop in new_props:
         session.refresh(prop)
-    
+
     return new_props
 
 
@@ -301,19 +340,19 @@ def delete_entry_prop(
     key: str,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> dict:
     """Delete a specific property from an entry"""
     prop = session.query(EntryPropModel).filter(
         EntryPropModel.entry_id == entry_id,
         EntryPropModel.key == key
     ).first()
-    
+
     if not prop:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found"
         )
-    
+
     session.delete(prop)
     session.commit()
     return {"message": "Property deleted successfully"}
@@ -324,10 +363,10 @@ def delete_entry_prop(
 async def upload_media(
     entry_id: int,
     file: UploadFile = File(...),
-    kind: Optional[Literal["image", "video", "audio", "doc"]] = Form(None),
+    kind: Literal["image", "video", "audio", "doc"] | None = Form(None),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> EntryMedia:
     """Upload media file for an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -335,9 +374,9 @@ async def upload_media(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
+
     file_info = await store_upload(file, kind)
-    
+
     media = EntryMediaModel(
         entry_id=entry_id,
         kind=file_info["kind"],
@@ -346,7 +385,7 @@ async def upload_media(
         height=file_info.get("height"),
         meta_json=None  # Could store additional metadata as JSON
     )
-    
+
     session.add(media)
     session.commit()
     session.refresh(media)
@@ -363,12 +402,12 @@ async def upload_media(
     )
 
 
-@router.get("/{entry_id}/media", response_model=List[EntryMedia])
+@router.get("/{entry_id}/media", response_model=list[EntryMedia])
 def get_entry_media(
     entry_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> list[EntryMedia]:
     """Get media files for an entry"""
     entry = session.query(EntryModel).filter(EntryModel.id == entry_id).first()
     if not entry:
@@ -376,8 +415,12 @@ def get_entry_media(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entry not found"
         )
-    
-    items = session.query(EntryMediaModel).filter(EntryMediaModel.entry_id == entry_id).all()
+
+    items = (
+        session.query(EntryMediaModel)
+        .filter(EntryMediaModel.entry_id == entry_id)
+        .all()
+    )
     # Map file_path to public URL for client
     return [
         EntryMedia(
@@ -400,22 +443,22 @@ def delete_media(
     media_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
-):
+) -> dict:
     """Delete media file from an entry"""
     media = session.query(EntryMediaModel).filter(
         EntryMediaModel.id == media_id,
         EntryMediaModel.entry_id == entry_id
     ).first()
-    
+
     if not media:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Media not found"
         )
-    
+
     # Delete physical file
     delete_upload(media.file_path)
-    
+
     # Delete database record
     session.delete(media)
     session.commit()

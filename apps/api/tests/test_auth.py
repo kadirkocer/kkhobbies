@@ -1,6 +1,3 @@
-import pytest
-from app.auth import hash_password
-from app.models import User
 
 
 def test_login_success(client, test_user):
@@ -48,7 +45,7 @@ def test_me_endpoint_authenticated(client, test_user):
         "password": "testpass123"
     })
     assert login_response.status_code == 200
-    
+
     # Then access /me
     response = client.get("/api/auth/me")
     assert response.status_code == 200

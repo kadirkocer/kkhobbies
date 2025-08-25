@@ -1,13 +1,14 @@
 import os
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import sessionmaker, Session
-from ..models.base import Base
+
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+
 
 def _database_url() -> str:
     # Default to repo-local data path when DB_PATH not provided
-    db_path = os.getenv('DB_PATH', 'data/app.db')
+    db_path = os.getenv("DB_PATH", "data/app.db")
     if not os.path.isabs(db_path):
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         db_path = os.path.abspath(os.path.join(base, db_path))
     return f"sqlite:///{db_path}"
 
