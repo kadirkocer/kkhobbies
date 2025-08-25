@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from .entry_media import EntryMedia
 from .entry_prop import EntryProp
@@ -34,7 +34,7 @@ class EntryListItem(BaseModel):
     updated_at: datetime | None
     media_count: int = 0
     thumbnail_url: str | None = None
-    props: Dict[str, Any] = {}
+    props: Dict[str, Any] = Field(default_factory=dict)
 
     class Config:
         from_attributes = True
@@ -44,8 +44,8 @@ class Entry(EntryBase):
     id: int
     created_at: datetime
     updated_at: datetime | None
-    media: List[EntryMedia] = []
-    props: List[EntryProp] = []
+    media: List[EntryMedia] = Field(default_factory=list)
+    props: List[EntryProp] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

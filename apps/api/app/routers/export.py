@@ -1,6 +1,8 @@
 import io
 import zipfile
 import json
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import APIRouter, Depends, Response, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -44,7 +46,7 @@ def export_json(session: Session):
     # Convert to dictionaries
     data = {
         "version": "1.0",
-        "export_date": "2024-01-01T00:00:00Z",  # Should be current timestamp
+        "export_date": datetime.now(timezone.utc).isoformat(),
         "users": [
             {
                 "id": u.id,
@@ -127,17 +129,19 @@ def export_zip(session: Session):
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # Add JSON export
-        json_data = export_json(session)
-        zf.writestr("data.json", json_data.body)
+        # Add JSON export (reuse serialization logic)
+        json_resp = export_json(session)
+        zf.writestr("data.json", json_resp.body)
         
         # Add database file if it exists
-        db_path = Path("./data/app.db")
+        db_path_str = os.getenv("DB_PATH", "./data/app.db")
+        db_path = Path(db_path_str)
         if db_path.exists():
             zf.write(db_path, "app.db")
         
         # Add upload files
-        uploads_path = Path("./uploads")
+        uploads_path_str = os.getenv("UPLOAD_DIR", "./uploads")
+        uploads_path = Path(uploads_path_str)
         if uploads_path.exists():
             for file_path in uploads_path.rglob("*"):
                 if file_path.is_file():
@@ -146,7 +150,7 @@ def export_zip(session: Session):
         
         # Add metadata
         metadata = {
-            "export_date": "2024-01-01T00:00:00Z",
+            "export_date": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "format": "hobby-showcase-backup"
         }

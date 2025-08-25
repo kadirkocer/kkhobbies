@@ -1,10 +1,12 @@
 'use client'
 
 import { Hobby } from '@/lib/shared/types'
+import Link from 'next/link'
 import { 
   Music, Camera, Video, Book, Shirt, Cpu, 
   FolderOpen, Plus, Settings 
 } from 'lucide-react'
+import { t } from '@/lib/i18n'
 
 interface SidebarProps {
   hobbies: Hobby[]
@@ -30,7 +32,7 @@ export function Sidebar({ hobbies, selectedHobbyId, onHobbySelect }: SidebarProp
   return (
     <div className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
       <div className="p-4 border-b border-gray-700">
-        <h1 className="text-xl font-bold text-white">Hobby Showcase</h1>
+        <h1 className="text-xl font-bold text-white">{t('app.title')}</h1>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
@@ -43,13 +45,13 @@ export function Sidebar({ hobbies, selectedHobbyId, onHobbySelect }: SidebarProp
           }`}
         >
           <FolderOpen className="w-5 h-5" />
-          <span>All Entries</span>
+          <span>{t('nav.all_entries')}</span>
         </button>
 
         <div className="pt-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-              Hobbies
+              {t('nav.hobbies')}
             </h3>
             <button className="text-gray-400 hover:text-white">
               <Plus className="w-4 h-4" />
@@ -81,10 +83,10 @@ export function Sidebar({ hobbies, selectedHobbyId, onHobbySelect }: SidebarProp
       </nav>
 
       <div className="p-4 border-t border-gray-700">
-        <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors">
+        <Link href="/settings" className="w-full flex items-center space-x-3 px-3 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors">
           <Settings className="w-5 h-5" />
-          <span>Settings</span>
-        </button>
+          <span>{t('nav.settings')}</span>
+        </Link>
       </div>
     </div>
   )

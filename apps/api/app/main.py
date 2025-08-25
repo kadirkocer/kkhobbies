@@ -119,6 +119,7 @@ app.include_router(export_router, prefix="/api")
 
 """Serve uploaded files under /api/uploads"""
 uploads_dir: Path = _resolve_upload_dir()
+uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/api/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
@@ -130,3 +131,37 @@ async def root():
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
+
+# Lightweight CSRF protection for cookie-auth (bypass in local)
+from fastapi import Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+def _csrf_enabled() -> bool:
+    return os.getenv("APP_ENV", "local").lower() not in {"local", "development", "dev"}
+
+
+async def _csrf_middleware(request: Request, call_next):
+    if not _csrf_enabled():
+        return await call_next(request)
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return await call_next(request)
+    # Allow login to set initial tokens
+    if request.url.path.endswith("/api/auth/login"):
+        return await call_next(request)
+    header = request.headers.get("X-CSRF-Token")
+    cookie = request.cookies.get("csrf_token")
+    if not header or not cookie or header != cookie:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "status": 403,
+                "code": "CSRF_FORBIDDEN",
+                "message": "CSRF token missing or invalid",
+                "details": None,
+            },
+        )
+    return await call_next(request)
+
+
+app.add_middleware(BaseHTTPMiddleware, dispatch=_csrf_middleware)

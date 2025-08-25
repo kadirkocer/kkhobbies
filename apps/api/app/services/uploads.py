@@ -303,3 +303,30 @@ def public_url(file_path: str) -> str:
     except Exception:
         # Fallback best-effort
         return f"/api/uploads/{Path(file_path).name}"
+
+
+async def store_avatar(file: UploadFile) -> Dict[str, Any]:
+    """Store a user avatar image under uploads/avatars with image guards."""
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    content = await file.read()
+    validated_kind = validate_file_security(content, file.filename or "", "image")
+
+    safe_name = secure_filename(file.filename or "avatar")
+    ext = Path(safe_name).suffix.lower() or ".png"
+    unique_id = str(uuid.uuid4())
+    final_name = f"{unique_id}{ext}"
+    avatar_dir = UPLOAD_DIR / "avatars"
+    avatar_dir.mkdir(exist_ok=True)
+    file_path = (avatar_dir / final_name).resolve()
+    # Ensure path within uploads dir
+    if not str(file_path).startswith(str(UPLOAD_DIR.resolve())):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
+    with open(file_path, "wb") as f:
+        f.write(content)
+    info = {
+        "file_path": str(file_path),
+        "kind": validated_kind,
+        "size": len(content),
+        "mime_type": detect_mime_type(content, file.filename or ""),
+    }
+    return info

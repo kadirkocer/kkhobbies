@@ -55,7 +55,8 @@ export function Sidebar({ onHobbySelect, selectedHobbyId }: SidebarProps) {
       await hobbiesAPI.createHobby({
         name: newHobbyName.trim(),
         color: '#6366f1',
-        icon: 'folder'
+        icon: 'folder',
+        parent_id: selectedHobbyId
       })
       setNewHobbyName('')
       setShowAddForm(false)

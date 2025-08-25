@@ -39,25 +39,40 @@ def get_entries(
     """Get entries with optional filters and search"""
     
     if q:
-        # Full-text search using FTS5
-        fts_query = text("""
-            SELECT e.*, rank
-            FROM entry e
+        # Full-text search using FTS5, order by BM25 rank (lower is better)
+        id_query = text(
+            """
+            SELECT e.id AS id
+            FROM entry AS e
             JOIN entry_fts ON entry_fts.rowid = e.id
             WHERE entry_fts MATCH :query
-            ORDER BY rank, e.created_at DESC
+            ORDER BY bm25(entry_fts), e.created_at DESC
             LIMIT :limit OFFSET :offset
-        """)
-        
-        count_query = text("""
+            """
+        )
+        count_query = text(
+            """
             SELECT COUNT(*)
-            FROM entry e
+            FROM entry AS e
             JOIN entry_fts ON entry_fts.rowid = e.id
             WHERE entry_fts MATCH :query
-        """)
-        
-        entries = session.execute(fts_query, {"query": q, "limit": limit, "offset": offset}).fetchall()
-        total = session.execute(count_query, {"query": q}).scalar()
+            """
+        )
+        params = {"query": q, "limit": limit, "offset": offset}
+        id_rows = session.execute(id_query, params).fetchall()
+        ids = [row[0] for row in id_rows]
+        total = int(session.execute(count_query, {"query": q}).scalar() or 0)
+        if ids:
+            entries = (
+                session.query(EntryModel)
+                .filter(EntryModel.id.in_(ids))
+                .all()
+            )
+            # Preserve order from FTS result
+            by_id = {e.id: e for e in entries}
+            entries = [by_id[i] for i in ids if i in by_id]
+        else:
+            entries = []
     else:
         # Regular query with filters
         query = session.query(EntryModel)
@@ -87,10 +102,7 @@ def get_entries(
     # Convert to EntryListItem format
     items = []
     for entry in entries:
-        if isinstance(entry, tuple):  # FTS result
-            entry_obj = entry[0]
-        else:
-            entry_obj = entry
+        entry_obj = entry
             
         # Get media count and thumbnail
         media_count = session.query(func.count(EntryMediaModel.id)).filter(

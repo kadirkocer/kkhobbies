@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -28,7 +28,7 @@ class HobbyUpdate(BaseModel):
 
 class Hobby(HobbyBase):
     id: int
-    children: List["Hobby"] = []
+    children: List["Hobby"] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

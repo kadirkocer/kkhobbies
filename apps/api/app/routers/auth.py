@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
 from sqlalchemy.orm import Session
 from ..auth import hash_password, verify_password, create_access_token, get_current_user
 from ..db import get_session
@@ -41,8 +41,23 @@ def login(
         value=access_token,
         httponly=True,
         max_age=1800,  # 30 minutes
-        samesite="lax"
+        samesite="lax",
+        secure=(os.getenv("APP_ENV", "local").lower() not in {"local", "development", "dev"}),
     )
+    # Issue CSRF token (non-HttpOnly) for double-submit protection in non-idempotent requests
+    try:
+        import secrets
+        csrf_token = secrets.token_urlsafe(32)
+        response.set_cookie(
+            key="csrf_token",
+            value=csrf_token,
+            httponly=False,
+            samesite="lax",
+            secure=(os.getenv("APP_ENV", "local").lower() not in {"local", "development", "dev"}),
+            max_age=1800,
+        )
+    except Exception:
+        pass
     
     return {"user": UserSchema.from_orm(user)}
 
@@ -51,6 +66,7 @@ def login(
 def logout(response: Response):
     """Logout by clearing the access token cookie"""
     response.delete_cookie("access_token")
+    response.delete_cookie("csrf_token")
     return {"message": "Logged out successfully"}
 
 
